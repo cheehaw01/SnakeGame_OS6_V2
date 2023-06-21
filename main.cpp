@@ -31,6 +31,8 @@ Thread threadBGM;
 Thread thread7SegDisplay;
 // ADDED (for buzzer)
 PwmOut buzzer(p26);
+AnalogIn pot1(p19);
+// AnalogIn pot2(p20);
 // ADDED (for 7 segments display)
 //DigitalOut ssel(p21);
 //DigitalOut mosi(p25);
@@ -141,9 +143,10 @@ int main()
     int prevJ;                  // previous head position Y-axis
     char bodyPattern[] = "O";   // snake body pattern
 
+
     // ADDED - start threads
     //thread.start(blinkLED);     // (will delete later)
-    //threadBGM.start(buzzerBGM);   // uncomment to play BGM
+    threadBGM.start(buzzerBGM);   // uncomment to play BGM
     thread7SegDisplay.start(segmentRefresh);
 
     if (p1 < 10)
@@ -213,7 +216,7 @@ int main()
             if (flag >= 1) {
                 x = (x + accel.x() * 32.0)/1.5;
                 y = (y -(accel.y() * 16.0))/1.5;
-                lcd.fillcircle(x+63, y+15, 3, 1); //draw bubble
+                lcd.fillcircle(x+63, y+15, 3, 5); //draw bubble
                 //lcd.circle(63, 15, 8, 1);
                 ThisThread::sleep_for(100ms); //time delay
                 printf(" score %d", score);
@@ -324,19 +327,72 @@ void updateBody(int bodyX[],  int bodyY[], int bodyLength) {
     }
 }
 
-// function - for output background music
+void changeVolume() {
+    // Read the potentiometer value
+    float potValue = pot1.read();
+
+    // Adjust the volume using the potentiometer value
+    buzzer.write(potValue);
+}
+
 void buzzerBGM() {
-    float frequency[] = {659, 554, 659, 554, 440, 494, 554, 587, 494, 659, 554, 440};
-    float beat[] = {1,1,1,1,1,0.5,0.5,1,1,1,1,2};
-    while (true) {
-        for (int i=0; i<=22; i++) {
-		    buzzer.period(1/(2*frequency[i]));
-		    buzzer=0.5;
-		    ThisThread::sleep_for(0.4*beat[i]*1000);
-		}
-        ThisThread::sleep_for(1s);
+    enum noteNames {C, Cs, D, Eb, E, F, Fs, G, Gs, A, Bb, B};
+    float nt[12][9] = { {16.35}, {17.32}, {18.35}, {19.45}, {20.60}, {21.83},
+                        {23.12}, {24.5}, {25.96}, {27.5}, {29.14}, {30.87} };
+    for (int i = 0; i < 12; i++) 
+        for (int j = 1; j < 9; j++) 
+            nt[i][j] = nt[i][j-1] * 2;
+
+    while(1) {
+        float notesCiciban[] = {nt[A][1], 0, nt[A][1], 0, nt[A][1], 0,
+                                nt[F][1], 0, nt[C][2], 0, nt[A][1], 0,
+                                nt[F][1], 0, nt[C][2], 0, nt[A][1], 0, 
+                                nt[E][2], 0, nt[E][2], 0, nt[E][2], 0,
+                                nt[F][2], 0, nt[C][2], 0, nt[Gs][1], 0, 
+                                nt[F][1], 0, nt[C][2], 0, nt[A][1], 0,
+                                nt[A][2], 0, nt[A][1], 0, nt[A][1], 0,
+                                nt[A][2], 0, nt[Gs][2], 0, nt[G][2], 0,
+                                nt[Fs][2], 0, nt[F][2], 0, nt[Fs][2], 0,
+                                nt[Bb][1], 0, nt[Eb][2], 0, nt[D][2], 0,
+                                nt[Cs][2], 0, nt[C][2], 0, nt[B][1], 0,
+                                nt[C][2], 0, nt[F][1], 0, nt[Gs][1], 0,
+                                nt[F][1], 0, nt[Gs][1], 0, nt[C][2], 0,
+                                nt[A][1], 0, nt[C][2], 0, nt[E][2], 0,
+                                nt[A][2], 0, nt[A][1], 0, nt[A][1], 0,
+                                nt[A][2], 0, nt[Gs][2], 0, nt[G][2], 0,
+                                nt[Fs][2], 0, nt[F][2], 0, nt[Fs][2], 0,
+                                nt[Bb][1], 0, nt[Eb][2], 0, nt[D][2], 0,
+                                nt[Cs][2], 0,};
+
+        float beatCiciban[] =  {1, 0.5, 1, 0.5, 1, 0.5,
+                                0.5, 0.5, 0.5, 0.5, 1, 0.5,
+                                0.5, 0.5, 0.5, 0.5, 2, 0.5, 
+                                1, 0.5, 1, 0.5, 1, 0.5, 
+                                0.5, 0.5, 0.5, 0.5, 1, 0.5,
+                                0.5, 0.5, 0.5, 0.5, 2, 0.5,
+                                1, 0.5, 0.5, 0.5, 0.5, 0.5,
+                                1, 0.5, 0.5, 0.5, 0.5, 0.5,
+                                0.25, 0.5, 0.25, 0.5, 0.25, 0.5,
+                                0.25, 0.5, 1, 0.5, 0.5, 0.5,
+                                0.5, 0.5, 0.25, 0.5, 0.25, 0.5,
+                                0.25, 0.5, 0.25, 0.5, 1, 0.5,
+                                0.5, 0.5, 0.5, 0.5, 1, 0.5,
+                                0.5, 0.5, 0.5, 0.5, 2, 0.5,
+                                1, 0.5, 0.5, 0.5, 0.5, 0.5,
+                                1, 0.5, 0.5, 0.5, 0.5, 0.5,
+                                0.25, 0.5, 0.25, 0.5, 0.25, 0.5,
+                                0.25, 0.5, 1, 0.5, 0.5, 0.5,
+                                0.5, 0.5};
+                                
+    
+        for (int i = 0; i < 109; i++) {
+            buzzer.period(1 / (4*notesCiciban[i]) );
+            changeVolume();           // Change the volume continuously based on the potentiometer value
+            ThisThread::sleep_for(0.25 * beatCiciban[i] *1000);
+        }
     }
 }
+
 
 // function - update shift register
 void updateShiftReg(uint8_t segments)
