@@ -23,38 +23,31 @@ BusIn joy(p15,p12,p13,p16);
 DigitalIn fire(p14);
 BusOut leds(LED1,LED2,LED3,LED4);
 MMA7660 accel(p28, p27); //I2C Accelerometer
-DigitalOut connectionLed(LED1);//Accel OK LED
+DigitalOut connectionLed(LED1); //Accel OK LED
 DigitalOut testLED(p9);
+
 // ADDED (for threading)
-Thread thread;
 Thread threadBGM;
 Thread thread7SegDisplay;
+Thread threadBlinkRGB;
+
 // ADDED (for buzzer)
 PwmOut buzzer(p26);
 AnalogIn pot1(p19);
 // AnalogIn pot2(p20);
-// ADDED (for 7 segments display)
-//DigitalOut ssel(p21);
-//DigitalOut mosi(p25);
-//DigitalOut sclk(p24);
-//DigitalOut seg1(p23);
-//DigitalOut seg2(p22);
-DigitalOut ssel(p21);
-DigitalOut mosi(p17);
-DigitalOut sclk(p18);
-DigitalOut seg1(p29);
-DigitalOut seg2(p22);
 
+// ADDED (for 7 segments display)
+DigitalOut ssel(p21);
+DigitalOut mosi(p29);
+DigitalOut sclk(p22);
+DigitalOut seg1(p17);
+DigitalOut seg2(p18);
+
+// digital out for RGB LED
 DigitalOut redPin(p23);
 DigitalOut greenPin(p24);
 DigitalOut bluePin(p25);
 
-// used pins: 
-// p5, p7, p6, p8, p11,     -- LCD
-// p12, p13, p14, p15, p16, -- joystick
-// p21, p22, p23, p24, p25, -- 7 segments
-// p26,                     -- buzzer
-// p27, p28,                -- accelerometer
 
 // ADDED (for 7 segments display) - Letter or Number from Combination of segments.
 const uint8_t segments[16] = {
@@ -84,8 +77,10 @@ void updateShiftReg(uint8_t segments);
 void segmentRefresh();
 void setRGBColor(int red, int green, int blue);
 void blink();
+
 // global variable
 int score = 0;
+int eat = false;
 
 int main()
 {
@@ -141,13 +136,13 @@ int main()
     int bodyLength = 1;         // current body length
     int prevI;                  // previous head position X-axis
     int prevJ;                  // previous head position Y-axis
-    char bodyPattern[] = "O";   // snake body pattern
+    // char bodyPattern[] = "O";   // snake body pattern
 
 
     // ADDED - start threads
-    //thread.start(blinkLED);     // (will delete later)
-    threadBGM.start(buzzerBGM);   // uncomment to play BGM
+    threadBGM.start(buzzerBGM);
     thread7SegDisplay.start(segmentRefresh);
+    threadBlinkRGB.start(blink);
 
     if (p1 < 10)
         p1 = 10;
@@ -244,26 +239,28 @@ int main()
 
                 for (int i = bodyLength - 2; i >= 0; i--) {
                     // pc.printf("the body is at %d %d\n \r", bodyPosX[i], bodyPosY[i]);
-                    lcd.locate(bodyPosX[i], bodyPosY[i]);
-                    lcd.printf(bodyPattern);
+                    lcd.fillcircle(bodyPosX[i], bodyPosY[i], 3, 1);
+                    //lcd.locate(bodyPosX[i], bodyPosY[i]);
+                    //lcd.printf(bodyPattern);
                 }
             }     
             // BLOCK ADDED - print body
 
             lcd.locate(i,j);
-            lcd.printf(bodyPattern);
+            lcd.fillcircle(i, j, 3, 1);
+            //lcd.printf(bodyPattern);
             lcd.locate(0, 22);
             lcd.printf("%d", score);
             //pc.printf("the dot is at %d %d\n \r", p1, p2); 
             printf("snake location %d %d\n \r", i, j);
             lcd.locate(p1, p2);
-            lcd.printf(".");
+            lcd.printf("x");
 
             // CONDITION FOR CHECKING THE SNAKE FOOD COLLISION
             if (abs(i - p1) <=cst && abs(j - p2) <=cst+1) { 
                 //pc.printf("the snake is at %d %d\n \r", i, j);
                 //pc.printf("the dot is at %d %d\n \r", p1, p2);
-                blink();
+                eat = true;
                 score = score + 1; 
                 setRGBColor(1, 1, 0);
 
@@ -327,6 +324,7 @@ void updateBody(int bodyX[],  int bodyY[], int bodyLength) {
     }
 }
 
+// function - adjust the volume of sound output
 void changeVolume() {
     // Read the potentiometer value
     float potValue = pot1.read();
@@ -335,6 +333,7 @@ void changeVolume() {
     buzzer.write(potValue);
 }
 
+// function - output the background music
 void buzzerBGM() {
     enum noteNames {C, Cs, D, Eb, E, F, Fs, G, Gs, A, Bb, B};
     float nt[12][9] = { {16.35}, {17.32}, {18.35}, {19.45}, {20.60}, {21.83},
@@ -456,12 +455,20 @@ void setRGBColor(int red, int green, int blue) {
     bluePin = blue;
 }
 
+// function - blink RGB LED when snake eat food
 void blink() {
-    for (int i = 0; i < 2; i++) {
-            setRGBColor(0, 0, 1);
-            wait_us(200000);
-            setRGBColor(1, 1, 1);
-            wait_us(200000);
+    while (true) {
+        if (eat) {
+            for (int i = 0; i < 2; i++) {
+                setRGBColor(0, 0, 1);
+                wait_us(200000);
+                setRGBColor(1, 1, 1);
+                wait_us(200000);
+            }
+            eat = false;
         }
+        ThisThread::sleep_for(1ms);
+    }
+    
 }
 // FUNCTION ADDED
